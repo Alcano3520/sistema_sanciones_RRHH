@@ -1,4 +1,4 @@
-# main_con_excel_historial.py - Sistema RRHH Completo con Excel e Historial
+# main.py - Sistema RRHH Completo con Excel e Historial - VERSIÓN FINAL CORREGIDA
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog
 import threading
@@ -170,133 +170,150 @@ class SancionCheckbox:
         self.create_row()
     
     def create_row(self):
-        """Crear la fila con checkbox y datos"""
-        # Frame para la fila completa
-        self.row_frame = tk.Frame(self.parent_frame, bg='white', relief='solid', bd=1)
-        self.row_frame.grid(row=self.row, column=0, sticky='ew', padx=2, pady=1)
+        """Crear la fila con checkbox y datos - LAYOUT CORREGIDO"""
+        # Frame para la fila completa con layout mejorado
+        self.row_frame = tk.Frame(self.parent_frame, bg='white', relief='solid', bd=1, height=35)
+        self.row_frame.grid(row=self.row, column=0, sticky='ew', padx=1, pady=1)
+        self.row_frame.grid_propagate(False)  # Mantener altura fija
         
-        # Configurar grid
-        self.row_frame.grid_columnconfigure(3, weight=1)  # Nombre empleado se expande
+        # Configurar grid - ANCHOS FIJOS para alineación
+        column_widths = [40, 80, 60, 200, 120, 80, 80, 80, 150, 40] if not self.show_procesado else [80, 60, 200, 120, 80, 80, 80, 150, 40]
+        
+        for i, width in enumerate(column_widths):
+            self.row_frame.grid_columnconfigure(i, minsize=width, weight=0)
         
         # Color alternado
         bg_color = '#f8f9fa' if self.row % 2 == 0 else 'white'
         self.row_frame.configure(bg=bg_color)
         
-        # Checkbox (solo si no es historial)
         col = 0
+        
+        # Checkbox (solo si no es historial)
         if not self.show_procesado:
             self.checkbox = tk.Checkbutton(
                 self.row_frame,
                 variable=self.is_selected,
                 bg=bg_color,
                 activebackground=bg_color,
-                font=('Arial', 12),
+                font=('Arial', 10),
                 cursor='hand2'
             )
-            self.checkbox.grid(row=0, column=col, padx=5, pady=5)
+            self.checkbox.grid(row=0, column=col, padx=3, pady=3, sticky='')
             col += 1
         
-        # ID (primeros 8 caracteres)
+        # ID (primeros 8 caracteres) - ANCHO FIJO
         id_label = tk.Label(
             self.row_frame,
             text=self.sancion.get('id', '')[:8] + '...',
             bg=bg_color,
-            font=('Arial', 9),
-            width=12,
-            anchor='center'
+            font=('Arial', 8),
+            anchor='center',
+            width=10
         )
-        id_label.grid(row=0, column=col, padx=5, pady=5)
+        id_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
         col += 1
         
-        # Código empleado
+        # Código empleado - ANCHO FIJO
         cod_label = tk.Label(
             self.row_frame,
             text=str(self.sancion.get('empleado_cod', '')),
             bg=bg_color,
             font=('Arial', 9, 'bold'),
-            width=8,
-            anchor='center'
+            anchor='center',
+            width=8
         )
-        cod_label.grid(row=0, column=col, padx=5, pady=5)
+        cod_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
         col += 1
         
-        # Nombre empleado
+        # Nombre empleado - ANCHO EXPANDIBLE
+        nombre_text = self.sancion.get('empleado_nombre', '')
+        if len(nombre_text) > 25:
+            nombre_text = nombre_text[:22] + '...'
+        
         nombre_label = tk.Label(
             self.row_frame,
-            text=self.sancion.get('empleado_nombre', ''),
+            text=nombre_text,
             bg=bg_color,
             font=('Arial', 9),
             anchor='w',
-            wraplength=200
+            width=25
         )
-        nombre_label.grid(row=0, column=col, padx=5, pady=5, sticky='w')
+        nombre_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
         col += 1
         
-        # Tipo sanción
+        # Tipo sanción - ANCHO FIJO
+        tipo_text = self.sancion.get('tipo_sancion', '')
+        if len(tipo_text) > 15:
+            tipo_text = tipo_text[:12] + '...'
+        
         tipo_label = tk.Label(
             self.row_frame,
-            text=self.sancion.get('tipo_sancion', ''),
+            text=tipo_text,
             bg=bg_color,
-            font=('Arial', 9, 'bold'),
-            width=15,
+            font=('Arial', 8, 'bold'),
             anchor='center',
+            width=15,
             fg=COLOR_SECUNDARIO
         )
-        tipo_label.grid(row=0, column=col, padx=5, pady=5)
+        tipo_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
         col += 1
         
-        # Fecha
+        # Fecha - ANCHO FIJO
         fecha_label = tk.Label(
             self.row_frame,
             text=self.sancion.get('fecha', '')[:10],
             bg=bg_color,
-            font=('Arial', 9),
-            width=12,
-            anchor='center'
+            font=('Arial', 8),
+            anchor='center',
+            width=10
         )
-        fecha_label.grid(row=0, column=col, padx=5, pady=5)
+        fecha_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
         col += 1
         
         # Si es historial, mostrar info de procesamiento
         if self.show_procesado:
+            # Procesado por
             procesado_label = tk.Label(
                 self.row_frame,
                 text=self.sancion.get('procesado_por', 'N/A'),
                 bg=bg_color,
-                font=('Arial', 9, 'bold'),
-                width=10,
+                font=('Arial', 8, 'bold'),
                 anchor='center',
+                width=10,
                 fg='green'
             )
-            procesado_label.grid(row=0, column=col, padx=5, pady=5)
+            procesado_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
             col += 1
             
+            # Fecha procesamiento
             fecha_proc_label = tk.Label(
                 self.row_frame,
                 text=self.sancion.get('fecha_procesamiento', '')[:10],
                 bg=bg_color,
-                font=('Arial', 9),
-                width=12,
-                anchor='center'
+                font=('Arial', 8),
+                anchor='center',
+                width=10
             )
-            fecha_proc_label.grid(row=0, column=col, padx=5, pady=5)
+            fecha_proc_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
             col += 1
         
-        # Observaciones (truncadas)
+        # Observaciones (truncadas) - ANCHO EXPANDIBLE
         obs_text = self.sancion.get('observaciones', '') or ''
-        obs_display = (obs_text[:30] + '...') if len(obs_text) > 30 else obs_text
+        if len(obs_text) > 20:
+            obs_text = obs_text[:17] + '...'
+        
         obs_label = tk.Label(
             self.row_frame,
-            text=obs_display,
+            text=obs_text,
             bg=bg_color,
             font=('Arial', 8),
             anchor='w',
-            wraplength=200
+            width=20
         )
-        obs_label.grid(row=0, column=col, padx=5, pady=5, sticky='w')
+        obs_label.grid(row=0, column=col, padx=2, pady=3, sticky='ew')
         col += 1
         
-        # Botón detalles
+        # Botón detalles - ANCHO FIJO
         detalles_btn = tk.Button(
             self.row_frame,
             text="👁️",
@@ -304,12 +321,12 @@ class SancionCheckbox:
             bg=COLOR_PRINCIPAL,
             fg='white',
             font=('Arial', 8),
-            width=3,
+            width=2,
             height=1,
             relief='flat',
             cursor='hand2'
         )
-        detalles_btn.grid(row=0, column=col, padx=5, pady=2)
+        detalles_btn.grid(row=0, column=col, padx=2, pady=2, sticky='')
         
         # Evento para seleccionar toda la fila (solo si no es historial)
         if not self.show_procesado:
@@ -551,17 +568,23 @@ class SancionesTab:
             )
             self.process_btn.pack(side=tk.RIGHT)
         
-        # Header de la tabla
-        header_table_frame = tk.Frame(main_frame, bg=header_color, height=35)
+        # Header de la tabla - ALINEADO CON DATOS
+        header_table_frame = tk.Frame(main_frame, bg=header_color, height=40)
         header_table_frame.pack(fill=tk.X, pady=(0, 5))
         header_table_frame.pack_propagate(False)
         
-        # Headers según tipo de vista
+        # Configurar grid del header - MISMOS ANCHOS QUE DATOS
         if self.es_historial:
+            column_widths = [80, 60, 200, 120, 80, 80, 80, 150, 40]
             headers = ['ID', 'Cód', 'Nombre Empleado', 'Tipo', 'Fecha', 'Proc. Por', 'Fecha Proc.', 'Observaciones', '👁️']
         else:
+            column_widths = [40, 80, 60, 200, 120, 80, 150, 40]
             headers = ['☑️', 'ID', 'Cód', 'Nombre Empleado', 'Tipo', 'Fecha', 'Observaciones', '👁️']
         
+        for i, width in enumerate(column_widths):
+            header_table_frame.grid_columnconfigure(i, minsize=width, weight=0)
+        
+        # Crear labels de header con anchos exactos
         for i, header in enumerate(headers):
             label = tk.Label(
                 header_table_frame,
@@ -569,20 +592,13 @@ class SancionesTab:
                 bg=header_color,
                 fg='white',
                 font=('Arial', 10, 'bold'),
-                width=10 if header not in ['Nombre Empleado', 'Observaciones'] else 0
+                anchor='center',
+                width=column_widths[i]//8  # Convertir pixels a caracteres aproximadamente
             )
-            label.grid(row=0, column=i, padx=2, pady=5, sticky='ew' if header in ['Nombre Empleado', 'Observaciones'] else '')
+            label.grid(row=0, column=i, padx=1, pady=5, sticky='ew')
         
-        # Configurar grid del header
-        if self.es_historial:
-            header_table_frame.grid_columnconfigure(2, weight=1)  # Nombre empleado
-            header_table_frame.grid_columnconfigure(7, weight=1)  # Observaciones
-        else:
-            header_table_frame.grid_columnconfigure(3, weight=1)  # Nombre empleado  
-            header_table_frame.grid_columnconfigure(6, weight=1)  # Observaciones
-        
-        # Frame scrollable para las sanciones
-        canvas_frame = tk.Frame(main_frame, relief='solid', bd=1)
+        # Frame scrollable para las sanciones - MEJORADO
+        canvas_frame = tk.Frame(main_frame, relief='solid', bd=1, bg='white')
         canvas_frame.pack(fill=tk.BOTH, expand=True, padx=5)
         
         # Canvas y scrollbar
@@ -590,31 +606,48 @@ class SancionesTab:
         scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=self.canvas.yview)
         
         self.scrollable_frame = tk.Frame(self.canvas, bg='white')
-        self.scrollable_frame.grid_columnconfigure(0, weight=1)
+        
+        # Configurar grid del frame scrollable - MISMO ANCHO QUE HEADERS
+        self.scrollable_frame.grid_columnconfigure(0, weight=1, minsize=800)  # Ancho total mínimo
         
         # Configurar canvas
         self.canvas.configure(yscrollcommand=scrollbar.set)
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         
         # Pack canvas y scrollbar
         self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Bind para scroll con rueda del mouse
+        # Bind para scroll con rueda del mouse y redimensionamiento
         def _on_mousewheel(event):
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
+        def _on_canvas_configure(event):
+            # Asegurar que el frame scrollable tenga el ancho del canvas
+            canvas_width = event.width
+            self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+        
+        def _on_frame_configure(event):
+            # Actualizar el scrollregion cuando cambie el contenido
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
         self.canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.canvas.bind('<Configure>', _on_canvas_configure)
+        self.scrollable_frame.bind('<Configure>', _on_frame_configure)
         
         # Poblar con sanciones
         self.populate_sanciones()
         
-        # Footer con información
-        footer_frame = tk.Frame(main_frame, bg='#f8f9fa', height=40)
+        # Footer con información - MEJORADO
+        footer_frame = tk.Frame(main_frame, bg='#f8f9fa', height=35)
         footer_frame.pack(fill=tk.X, pady=(10, 0))
         footer_frame.pack_propagate(False)
         
-        footer_text = "💡 Tip: Usa 📥 para descargar Excel de esta categoría" if self.es_historial else "💡 Tip: Haz click en 👁️ para ver detalles completos | Click en la fila para seleccionar"
+        if self.es_historial:
+            footer_text = f"💡 Historial de {self.categoria} | 📥 Usa 'Descargar Excel' para exportar | 👁️ Click para ver detalles"
+        else:
+            footer_text = f"💡 {len(self.sanciones)} sanciones pendientes | ☑️ Click en filas para seleccionar | ⚡ Procesar seleccionadas para continuar"
+        
         footer_label = tk.Label(
             footer_frame,
             text=footer_text,
@@ -622,7 +655,7 @@ class SancionesTab:
             fg='#6c757d',
             font=('Arial', 9)
         )
-        footer_label.pack(pady=10)
+        footer_label.pack(pady=8)
         
         # Actualizar contador inicial (solo para pendientes)
         if not self.es_historial:
@@ -631,8 +664,10 @@ class SancionesTab:
         return main_frame
     
     def populate_sanciones(self):
-        """Crear checkboxes para cada sanción"""
+        """Crear checkboxes para cada sanción - OPTIMIZADO"""
         self.checkboxes = []
+        
+        print(f"📊 Poblando {len(self.sanciones)} sanciones en {self.categoria}")
         
         for i, sancion in enumerate(self.sanciones):
             checkbox_row = SancionCheckbox(
@@ -644,9 +679,11 @@ class SancionesTab:
             )
             self.checkboxes.append(checkbox_row)
         
-        # Actualizar región scrollable
+        # Forzar actualización del canvas después de agregar todos los elementos
         self.scrollable_frame.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        print(f"✅ {len(self.checkboxes)} filas creadas correctamente")
     
     def select_all(self):
         """Seleccionar todas las sanciones"""
@@ -704,17 +741,14 @@ class SancionesTab:
             filepath = filedialog.asksaveasfilename(
                 defaultextension=".xlsx",
                 filetypes=[("Excel files", "*.xlsx")],
-                initialfile=filename,  # CORREGIDO: era initialname
+                initialfile=filename,
                 title="Guardar Excel"
             )
             
             if filepath:
-                # Intentar exportación completa, si falla usar simple
+                # USAR FUNCIÓN CORREGIDA DIRECTAMENTE
+                print(f"📥 Exportando categoría: {self.categoria}")
                 archivo_generado = procesador.exportar_a_excel(self.sanciones, filepath)
-                
-                if not archivo_generado:
-                    print("⚠️ Exportación completa falló, intentando versión simple...")
-                    archivo_generado = procesador.exportar_a_excel_simple(self.sanciones, filepath)
                 
                 if archivo_generado:
                     messagebox.showinfo(
@@ -1034,7 +1068,7 @@ class MainWindow:
             filepath = filedialog.asksaveasfilename(
                 defaultextension=".xlsx",
                 filetypes=[("Excel files", "*.xlsx")],
-                initialfile=filename,  # CORREGIDO: era initialname
+                initialfile=filename,
                 title="Guardar Sanciones Procesadas"
             )
             
@@ -1044,12 +1078,9 @@ class MainWindow:
                     sancion['procesado_por'] = self.usuario
                     sancion['fecha_procesamiento'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
-                # Intentar exportación completa, si falla usar simple
+                # USAR FUNCIÓN CORREGIDA DIRECTAMENTE
+                print(f"📥 Exportando sanciones recién procesadas...")
                 archivo_generado = procesador.exportar_a_excel(sanciones_procesadas, filepath)
-                
-                if not archivo_generado:
-                    print("⚠️ Exportación completa falló, intentando versión simple...")
-                    archivo_generado = procesador.exportar_a_excel_simple(sanciones_procesadas, filepath)
                 
                 if archivo_generado:
                     messagebox.showinfo(
@@ -1081,17 +1112,14 @@ class MainWindow:
             filepath = filedialog.asksaveasfilename(
                 defaultextension=".xlsx",
                 filetypes=[("Excel files", "*.xlsx")],
-                initialfile=filename,  # CORREGIDO: era initialname
+                initialfile=filename,
                 title="Guardar Historial Completo"
             )
             
             if filepath:
-                # Intentar exportación completa, si falla usar simple
+                # USAR FUNCIÓN CORREGIDA DIRECTAMENTE
+                print(f"📥 Exportando historial completo...")
                 archivo_generado = procesador.exportar_a_excel(procesadas, filepath)
-                
-                if not archivo_generado:
-                    print("⚠️ Exportación completa falló, intentando versión simple...")
-                    archivo_generado = procesador.exportar_a_excel_simple(procesadas, filepath)
                 
                 if archivo_generado:
                     messagebox.showinfo(
@@ -1233,7 +1261,7 @@ class MainWindow:
             filepath = filedialog.asksaveasfilename(
                 defaultextension=".txt",
                 filetypes=[("Text files", "*.txt")],
-                initialfile=filename,  # CORREGIDO: era initialname
+                initialfile=filename,
                 title="Guardar Reporte"
             )
             
