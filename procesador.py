@@ -281,6 +281,185 @@ class ProcesadorRRHH:
             print(f"❌ Error creando sanción de prueba: {e}")
             return False
     
+    def obtener_procesadas_completas(self) -> List[Dict]:
+        """Obtener todas las sanciones procesadas con detalles completos"""
+        try:
+            with sqlite3.connect(DB_LOCAL) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT id, usuario, empleado_cod, empleado_nombre, 
+                           tipo_sancion, fecha_proceso 
+                    FROM procesadas 
+                    ORDER BY fecha_proceso DESC
+                ''')
+                
+                procesadas_locales = cursor.fetchall()
+                
+                if not procesadas_locales:
+                    return []
+                
+                # Obtener detalles completos de Supabase
+                ids_procesadas = [row[0] for row in procesadas_locales]
+                
+                # Consultar Supabase para obtener detalles completos
+                url = f"{SUPABASE_URL}/rest/v1/sanciones"
+                params = {
+                    'select': '*',
+                    'id': f'in.({",".join(ids_procesadas)})'
+                }
+                
+                response = requests.get(url, headers=self.supabase_headers, params=params)
+                
+                if response.status_code == 200:
+                    sanciones_supabase = response.json()
+                    
+                    # Combinar datos locales con datos de Supabase
+                    sanciones_completas = []
+                    for local_row in procesadas_locales:
+                        id_local, usuario, emp_cod, emp_nombre, tipo, fecha_proc = local_row
+                        
+                        # Buscar datos completos en Supabase
+                        sancion_supabase = next(
+                            (s for s in sanciones_supabase if s['id'] == id_local), 
+                            None
+                        )
+                        
+                        if sancion_supabase:
+                            # Agregar datos de procesamiento local
+                            sancion_supabase['procesado_por'] = usuario
+                            sancion_supabase['fecha_procesamiento'] = fecha_proc
+                            sanciones_completas.append(sancion_supabase)
+                    
+                    return sanciones_completas
+                else:
+                    print(f"❌ Error obteniendo detalles de Supabase: {response.status_code}")
+                    return []
+                    
+        except Exception as e:
+            print(f"❌ Error obteniendo procesadas completas: {e}")
+            return []
+    
+    def categorizar_procesadas(self, sanciones: List[Dict]) -> Dict[str, List[Dict]]:
+        """Organizar sanciones procesadas por categorías"""
+        return self.categorizar_sanciones(sanciones)
+    
+    def exportar_a_excel(self, sanciones: List[Dict], nombre_archivo: str = None) -> str:
+        """Exportar sanciones a Excel"""
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill
+            from openpyxl.utils import get_column_letter
+            
+        except ImportError:
+            print("❌ openpyxl no está instalado. Instalando...")
+            import subprocess
+            import sys
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "openpyxl"])
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill
+            from openpyxl.utils import get_column_letter
+        
+        try:
+            # Nombre del archivo
+            if not nombre_archivo:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                nombre_archivo = f"Sanciones_Procesadas_{timestamp}.xlsx"
+            
+            # Crear workbook
+            wb = openpyxl.Workbook()
+            
+            # Organizar por categorías
+            categorizadas = self.categorizar_sanciones(sanciones)
+            
+            # Eliminar hoja por defecto
+            if 'Sheet' in wb.sheetnames:
+                wb.remove(wb['Sheet'])
+            
+            # Crear hoja para cada categoría
+            for categoria, sanciones_categoria in categorizadas.items():
+                if not sanciones_categoria:
+                    continue
+                    
+                # Crear hoja
+                ws = wb.create_sheet(title=categoria[:30])  # Limitar nombre de hoja
+                
+                # Estilo del header
+                header_font = Font(bold=True, color="FFFFFF")
+                header_fill = PatternFill(start_color="2E86AB", end_color="2E86AB", fill_type="solid")
+                header_alignment = Alignment(horizontal="center", vertical="center")
+                
+                # Headers
+                headers = [
+                    'ID', 'Empleado Cod', 'Empleado Nombre', 'Puesto', 
+                    'Agente', 'Fecha', 'Hora', 'Tipo Sanción', 
+                    'Observaciones', 'Status', 'Comentarios Gerencia',
+                    'Comentarios RRHH', 'Procesado Por', 'Fecha Procesamiento'
+                ]
+                
+                # Escribir headers
+                for col, header in enumerate(headers, 1):
+                    cell = ws.cell(row=1, column=col, value=header)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_alignment
+                
+                # Escribir datos
+                for row, sancion in enumerate(sanciones_categoria, 2):
+                    data_row = [
+                        sancion.get('id', '')[:8] + '...',
+                        sancion.get('empleado_cod', ''),
+                        sancion.get('empleado_nombre', ''),
+                        sancion.get('puesto', ''),
+                        sancion.get('agente', ''),
+                        sancion.get('fecha', ''),
+                        sancion.get('hora', ''),
+                        sancion.get('tipo_sancion', ''),
+                        sancion.get('observaciones', ''),
+                        sancion.get('status', ''),
+                        sancion.get('comentarios_gerencia', ''),
+                        sancion.get('comentarios_rrhh', ''),
+                        sancion.get('procesado_por', ''),
+                        sancion.get('fecha_procesamiento', '')
+                    ]
+                    
+                    for col, value in enumerate(data_row, 1):
+                        ws.cell(row=row, column=col, value=value)
+                
+                # Ajustar ancho de columnas
+                for col in range(1, len(headers) + 1):
+                    column_letter = get_column_letter(col)
+                    ws.column_dimensions[column_letter].width = 15
+                
+                # Ajustar ancho específico para ciertas columnas
+                ws.column_dimensions['C'].width = 25  # Nombre empleado
+                ws.column_dimensions['I'].width = 30  # Observaciones
+                ws.column_dimensions['L'].width = 30  # Comentarios RRHH
+            
+            # Crear hoja resumen
+            ws_resumen = wb.create_sheet(title="Resumen", index=0)
+            
+            # Escribir resumen
+            ws_resumen['A1'] = "RESUMEN DE SANCIONES PROCESADAS"
+            ws_resumen['A1'].font = Font(size=16, bold=True)
+            
+            ws_resumen['A3'] = f"Fecha de generación: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            ws_resumen['A4'] = f"Total de sanciones: {len(sanciones)}"
+            
+            row = 6
+            for categoria, sanciones_cat in categorizadas.items():
+                ws_resumen[f'A{row}'] = f"{categoria}: {len(sanciones_cat)} sanciones"
+                row += 1
+            
+            # Guardar archivo
+            wb.save(nombre_archivo)
+            print(f"✅ Excel exportado: {nombre_archivo}")
+            
+            return nombre_archivo
+            
+        except Exception as e:
+            print(f"❌ Error exportando a Excel: {e}")
+            return None
+
     def obtener_estadisticas(self) -> Dict:
         """Obtener estadísticas del sistema"""
         try:
