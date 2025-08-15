@@ -1,0 +1,23 @@
+# requirements.txt - Dependencias Sistema RRHH
+# Instalar con: pip install -r requirements.txt
+
+requests==2.31.0
+# Para conexión HTTP con Supabase API
+
+# Librerías estándar incluidas en Python:
+# - tkinter (GUI)
+# - sqlite3 (Base de datos local)
+# - threading (Hilos)
+# - datetime (Fechas)
+# - json (JSON)
+# - os (Sistema operativo)
+
+# INSTALACIÓN:
+# 1. Abrir terminal/cmd en la carpeta del proyecto
+# 2. Ejecutar: pip install -r requirements.txt
+# 3. Ejecutar el sistema: python main.py
+
+# USUARIOS POR DEFECTO:
+# - admin / 123456
+# - rrhh / rrhh2025  
+# - supervisor / super123
