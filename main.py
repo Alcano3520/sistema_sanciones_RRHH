@@ -1,7 +1,8 @@
-# main_con_checkboxes.py - Sistema RRHH con Checkboxes Reales
+# main_con_excel_historial.py - Sistema RRHH Completo con Excel e Historial
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, filedialog
 import threading
+import os
 from datetime import datetime
 from config import *
 from procesador import procesador
@@ -155,11 +156,12 @@ class LoginWindow:
 
 class SancionCheckbox:
     """Clase para manejar checkbox de cada sanción"""
-    def __init__(self, sancion, parent_frame, row, on_selection_change):
+    def __init__(self, sancion, parent_frame, row, on_selection_change, show_procesado=False):
         self.sancion = sancion
         self.parent_frame = parent_frame
         self.row = row
         self.on_selection_change = on_selection_change
+        self.show_procesado = show_procesado
         
         # Variable para el checkbox
         self.is_selected = tk.BooleanVar()
@@ -174,23 +176,25 @@ class SancionCheckbox:
         self.row_frame.grid(row=self.row, column=0, sticky='ew', padx=2, pady=1)
         
         # Configurar grid
-        self.row_frame.grid_columnconfigure(1, weight=1)  # Nombre empleado se expande
-        self.row_frame.grid_columnconfigure(5, weight=1)  # Observaciones se expande
+        self.row_frame.grid_columnconfigure(3, weight=1)  # Nombre empleado se expande
         
         # Color alternado
         bg_color = '#f8f9fa' if self.row % 2 == 0 else 'white'
         self.row_frame.configure(bg=bg_color)
         
-        # Checkbox
-        self.checkbox = tk.Checkbutton(
-            self.row_frame,
-            variable=self.is_selected,
-            bg=bg_color,
-            activebackground=bg_color,
-            font=('Arial', 12),
-            cursor='hand2'
-        )
-        self.checkbox.grid(row=0, column=0, padx=5, pady=5)
+        # Checkbox (solo si no es historial)
+        col = 0
+        if not self.show_procesado:
+            self.checkbox = tk.Checkbutton(
+                self.row_frame,
+                variable=self.is_selected,
+                bg=bg_color,
+                activebackground=bg_color,
+                font=('Arial', 12),
+                cursor='hand2'
+            )
+            self.checkbox.grid(row=0, column=col, padx=5, pady=5)
+            col += 1
         
         # ID (primeros 8 caracteres)
         id_label = tk.Label(
@@ -201,7 +205,8 @@ class SancionCheckbox:
             width=12,
             anchor='center'
         )
-        id_label.grid(row=0, column=1, padx=5, pady=5)
+        id_label.grid(row=0, column=col, padx=5, pady=5)
+        col += 1
         
         # Código empleado
         cod_label = tk.Label(
@@ -212,7 +217,8 @@ class SancionCheckbox:
             width=8,
             anchor='center'
         )
-        cod_label.grid(row=0, column=2, padx=5, pady=5)
+        cod_label.grid(row=0, column=col, padx=5, pady=5)
+        col += 1
         
         # Nombre empleado
         nombre_label = tk.Label(
@@ -223,7 +229,8 @@ class SancionCheckbox:
             anchor='w',
             wraplength=200
         )
-        nombre_label.grid(row=0, column=3, padx=5, pady=5, sticky='w')
+        nombre_label.grid(row=0, column=col, padx=5, pady=5, sticky='w')
+        col += 1
         
         # Tipo sanción
         tipo_label = tk.Label(
@@ -235,7 +242,8 @@ class SancionCheckbox:
             anchor='center',
             fg=COLOR_SECUNDARIO
         )
-        tipo_label.grid(row=0, column=4, padx=5, pady=5)
+        tipo_label.grid(row=0, column=col, padx=5, pady=5)
+        col += 1
         
         # Fecha
         fecha_label = tk.Label(
@@ -246,20 +254,47 @@ class SancionCheckbox:
             width=12,
             anchor='center'
         )
-        fecha_label.grid(row=0, column=5, padx=5, pady=5)
+        fecha_label.grid(row=0, column=col, padx=5, pady=5)
+        col += 1
+        
+        # Si es historial, mostrar info de procesamiento
+        if self.show_procesado:
+            procesado_label = tk.Label(
+                self.row_frame,
+                text=self.sancion.get('procesado_por', 'N/A'),
+                bg=bg_color,
+                font=('Arial', 9, 'bold'),
+                width=10,
+                anchor='center',
+                fg='green'
+            )
+            procesado_label.grid(row=0, column=col, padx=5, pady=5)
+            col += 1
+            
+            fecha_proc_label = tk.Label(
+                self.row_frame,
+                text=self.sancion.get('fecha_procesamiento', '')[:10],
+                bg=bg_color,
+                font=('Arial', 9),
+                width=12,
+                anchor='center'
+            )
+            fecha_proc_label.grid(row=0, column=col, padx=5, pady=5)
+            col += 1
         
         # Observaciones (truncadas)
         obs_text = self.sancion.get('observaciones', '') or ''
-        obs_display = (obs_text[:40] + '...') if len(obs_text) > 40 else obs_text
+        obs_display = (obs_text[:30] + '...') if len(obs_text) > 30 else obs_text
         obs_label = tk.Label(
             self.row_frame,
             text=obs_display,
             bg=bg_color,
             font=('Arial', 8),
             anchor='w',
-            wraplength=250
+            wraplength=200
         )
-        obs_label.grid(row=0, column=6, padx=5, pady=5, sticky='w')
+        obs_label.grid(row=0, column=col, padx=5, pady=5, sticky='w')
+        col += 1
         
         # Botón detalles
         detalles_btn = tk.Button(
@@ -274,24 +309,28 @@ class SancionCheckbox:
             relief='flat',
             cursor='hand2'
         )
-        detalles_btn.grid(row=0, column=7, padx=5, pady=2)
+        detalles_btn.grid(row=0, column=col, padx=5, pady=2)
         
-        # Evento para seleccionar toda la fila
-        for widget in [self.row_frame, id_label, cod_label, nombre_label, tipo_label, fecha_label, obs_label]:
-            widget.bind('<Button-1>', self.toggle_selection)
+        # Evento para seleccionar toda la fila (solo si no es historial)
+        if not self.show_procesado:
+            widgets_clickeables = [self.row_frame, id_label, cod_label, nombre_label, tipo_label, fecha_label, obs_label]
+            for widget in widgets_clickeables:
+                widget.bind('<Button-1>', self.toggle_selection)
     
     def on_check_change(self, *args):
         """Callback cuando cambia el estado del checkbox"""
-        self.update_row_color()
-        self.on_selection_change()
+        if not self.show_procesado:
+            self.update_row_color()
+            self.on_selection_change()
     
     def toggle_selection(self, event=None):
         """Alternar selección al hacer click en la fila"""
-        self.is_selected.set(not self.is_selected.get())
+        if not self.show_procesado:
+            self.is_selected.set(not self.is_selected.get())
     
     def update_row_color(self):
         """Actualizar color de la fila según selección"""
-        if self.is_selected.get():
+        if not self.show_procesado and self.is_selected.get():
             # Seleccionada - color verde
             bg_color = '#d4edda'
         else:
@@ -345,6 +384,14 @@ class SancionCheckbox:
 🔄 Actualizado: {self.sancion.get('updated_at', 'N/A')}
         """
         
+        # Si es historial, agregar info de procesamiento
+        if self.show_procesado:
+            content += f"""
+🔄 INFORMACIÓN DE PROCESAMIENTO:
+👤 Procesado por: {self.sancion.get('procesado_por', 'N/A')}
+📅 Fecha procesamiento: {self.sancion.get('fecha_procesamiento', 'N/A')}
+            """
+        
         text_widget.insert(tk.END, content.strip())
         text_widget.config(state=tk.DISABLED)
         
@@ -362,11 +409,12 @@ class SancionCheckbox:
         close_btn.pack(pady=10)
 
 class SancionesTab:
-    def __init__(self, parent, categoria, sanciones, on_procesar, on_refresh):
+    def __init__(self, parent, categoria, sanciones, on_procesar, on_refresh, es_historial=False):
         self.categoria = categoria
         self.sanciones = sanciones
         self.on_procesar = on_procesar
         self.on_refresh = on_refresh
+        self.es_historial = es_historial
         self.checkboxes = []
         
         self.create_tab(parent)
@@ -376,27 +424,32 @@ class SancionesTab:
         main_frame = tk.Frame(parent, bg='white')
         
         # Header con info y estilo
-        header_frame = tk.Frame(main_frame, bg=COLOR_PRINCIPAL, height=80)
+        header_color = '#28a745' if self.es_historial else COLOR_PRINCIPAL
+        header_icon = '📚' if self.es_historial else '📋'
+        header_text = f"{header_icon} {self.categoria} - Historial" if self.es_historial else f"{header_icon} {self.categoria}"
+        
+        header_frame = tk.Frame(main_frame, bg=header_color, height=80)
         header_frame.pack(fill=tk.X, pady=(0, 15))
         header_frame.pack_propagate(False)
         
         # Título y contador
-        title_frame = tk.Frame(header_frame, bg=COLOR_PRINCIPAL)
+        title_frame = tk.Frame(header_frame, bg=header_color)
         title_frame.pack(expand=True, fill=tk.BOTH)
         
         header_label = tk.Label(
             title_frame,
-            text=f"📋 {self.categoria}",
-            bg=COLOR_PRINCIPAL,
+            text=header_text,
+            bg=header_color,
             fg='white',
             font=('Arial', 16, 'bold')
         )
         header_label.pack(pady=(15, 5))
         
+        count_text = f"{len(self.sanciones)} procesadas" if self.es_historial else f"{len(self.sanciones)} pendientes"
         count_label = tk.Label(
             title_frame,
-            text=f"{len(self.sanciones)} sanciones pendientes",
-            bg=COLOR_PRINCIPAL,
+            text=count_text,
+            bg=header_color,
             fg='white',
             font=('Arial', 11)
         )
@@ -406,47 +459,63 @@ class SancionesTab:
         controls_frame = tk.Frame(main_frame, bg='white')
         controls_frame.pack(fill=tk.X, pady=(0, 15))
         
-        # Lado izquierdo - Selección
+        # Lado izquierdo - Selección (solo para pendientes)
         left_controls = tk.Frame(controls_frame, bg='white')
         left_controls.pack(side=tk.LEFT)
         
-        select_all_btn = tk.Button(
-            left_controls,
-            text="☑️ Seleccionar Todo",
-            command=self.select_all,
-            bg=COLOR_SECUNDARIO,
-            fg='white',
-            font=('Arial', 10, 'bold'),
-            relief='flat',
-            cursor='hand2',
-            padx=15,
-            pady=8
-        )
-        select_all_btn.pack(side=tk.LEFT, padx=(0, 8))
-        
-        clear_btn = tk.Button(
-            left_controls,
-            text="🗑️ Limpiar Todo",
-            command=self.clear_all,
-            bg='#6c757d',
-            fg='white',
-            font=('Arial', 10),
-            relief='flat',
-            cursor='hand2',
-            padx=15,
-            pady=8
-        )
-        clear_btn.pack(side=tk.LEFT, padx=(0, 15))
-        
-        # Contador de seleccionadas
-        self.selected_count_label = tk.Label(
-            left_controls,
-            text="0 seleccionadas",
-            bg='white',
-            fg='gray',
-            font=('Arial', 10, 'bold')
-        )
-        self.selected_count_label.pack(side=tk.LEFT, padx=(10, 0))
+        if not self.es_historial:
+            select_all_btn = tk.Button(
+                left_controls,
+                text="☑️ Seleccionar Todo",
+                command=self.select_all,
+                bg=COLOR_SECUNDARIO,
+                fg='white',
+                font=('Arial', 10, 'bold'),
+                relief='flat',
+                cursor='hand2',
+                padx=15,
+                pady=8
+            )
+            select_all_btn.pack(side=tk.LEFT, padx=(0, 8))
+            
+            clear_btn = tk.Button(
+                left_controls,
+                text="🗑️ Limpiar Todo",
+                command=self.clear_all,
+                bg='#6c757d',
+                fg='white',
+                font=('Arial', 10),
+                relief='flat',
+                cursor='hand2',
+                padx=15,
+                pady=8
+            )
+            clear_btn.pack(side=tk.LEFT, padx=(0, 15))
+            
+            # Contador de seleccionadas
+            self.selected_count_label = tk.Label(
+                left_controls,
+                text="0 seleccionadas",
+                bg='white',
+                fg='gray',
+                font=('Arial', 10, 'bold')
+            )
+            self.selected_count_label.pack(side=tk.LEFT, padx=(10, 0))
+        else:
+            # Para historial, mostrar opciones de descarga
+            download_btn = tk.Button(
+                left_controls,
+                text="📥 Descargar Excel",
+                command=self.descargar_excel,
+                bg='#17a2b8',
+                fg='white',
+                font=('Arial', 10, 'bold'),
+                relief='flat',
+                cursor='hand2',
+                padx=15,
+                pady=8
+            )
+            download_btn.pack(side=tk.LEFT, padx=(0, 8))
         
         # Lado derecho - Acciones
         right_controls = tk.Frame(controls_frame, bg='white')
@@ -466,43 +535,51 @@ class SancionesTab:
         )
         refresh_btn.pack(side=tk.RIGHT, padx=(10, 0))
         
-        self.process_btn = tk.Button(
-            right_controls,
-            text="⚡ Procesar Seleccionadas",
-            command=self.procesar_seleccionadas,
-            bg=COLOR_EXITO,
-            fg='white',
-            font=('Arial', 11, 'bold'),
-            relief='flat',
-            cursor='hand2',
-            padx=20,
-            pady=10,
-            state='disabled'
-        )
-        self.process_btn.pack(side=tk.RIGHT)
+        if not self.es_historial:
+            self.process_btn = tk.Button(
+                right_controls,
+                text="⚡ Procesar Seleccionadas",
+                command=self.procesar_seleccionadas,
+                bg=COLOR_EXITO,
+                fg='white',
+                font=('Arial', 11, 'bold'),
+                relief='flat',
+                cursor='hand2',
+                padx=20,
+                pady=10,
+                state='disabled'
+            )
+            self.process_btn.pack(side=tk.RIGHT)
         
         # Header de la tabla
-        header_table_frame = tk.Frame(main_frame, bg=COLOR_PRINCIPAL, height=35)
+        header_table_frame = tk.Frame(main_frame, bg=header_color, height=35)
         header_table_frame.pack(fill=tk.X, pady=(0, 5))
         header_table_frame.pack_propagate(False)
         
-        # Configurar grid del header
-        header_table_frame.grid_columnconfigure(1, weight=1)
-        header_table_frame.grid_columnconfigure(5, weight=1)
+        # Headers según tipo de vista
+        if self.es_historial:
+            headers = ['ID', 'Cód', 'Nombre Empleado', 'Tipo', 'Fecha', 'Proc. Por', 'Fecha Proc.', 'Observaciones', '👁️']
+        else:
+            headers = ['☑️', 'ID', 'Cód', 'Nombre Empleado', 'Tipo', 'Fecha', 'Observaciones', '👁️']
         
-        headers = ['☑️', 'ID', 'Cód', 'Nombre Empleado', 'Tipo', 'Fecha', 'Observaciones', '👁️']
-        widths = [50, 100, 60, 200, 120, 100, 250, 40]
-        
-        for i, (header, width) in enumerate(zip(headers, widths)):
+        for i, header in enumerate(headers):
             label = tk.Label(
                 header_table_frame,
                 text=header,
-                bg=COLOR_PRINCIPAL,
+                bg=header_color,
                 fg='white',
                 font=('Arial', 10, 'bold'),
-                width=width//8 if i not in [3, 6] else 0  # Ancho fijo excepto para nombre y observaciones
+                width=10 if header not in ['Nombre Empleado', 'Observaciones'] else 0
             )
-            label.grid(row=0, column=i, padx=2, pady=5, sticky='ew' if i in [3, 6] else '')
+            label.grid(row=0, column=i, padx=2, pady=5, sticky='ew' if header in ['Nombre Empleado', 'Observaciones'] else '')
+        
+        # Configurar grid del header
+        if self.es_historial:
+            header_table_frame.grid_columnconfigure(2, weight=1)  # Nombre empleado
+            header_table_frame.grid_columnconfigure(7, weight=1)  # Observaciones
+        else:
+            header_table_frame.grid_columnconfigure(3, weight=1)  # Nombre empleado  
+            header_table_frame.grid_columnconfigure(6, weight=1)  # Observaciones
         
         # Frame scrollable para las sanciones
         canvas_frame = tk.Frame(main_frame, relief='solid', bd=1)
@@ -537,17 +614,19 @@ class SancionesTab:
         footer_frame.pack(fill=tk.X, pady=(10, 0))
         footer_frame.pack_propagate(False)
         
+        footer_text = "💡 Tip: Usa 📥 para descargar Excel de esta categoría" if self.es_historial else "💡 Tip: Haz click en 👁️ para ver detalles completos | Click en la fila para seleccionar"
         footer_label = tk.Label(
             footer_frame,
-            text=f"💡 Tip: Haz click en 👁️ para ver detalles completos | Click en la fila para seleccionar",
+            text=footer_text,
             bg='#f8f9fa',
             fg='#6c757d',
             font=('Arial', 9)
         )
         footer_label.pack(pady=10)
         
-        # Actualizar contador inicial
-        self.update_selected_count()
+        # Actualizar contador inicial (solo para pendientes)
+        if not self.es_historial:
+            self.update_selected_count()
         
         return main_frame
     
@@ -560,7 +639,8 @@ class SancionesTab:
                 sancion, 
                 self.scrollable_frame, 
                 i, 
-                self.update_selected_count
+                self.update_selected_count if not self.es_historial else lambda: None,
+                show_procesado=self.es_historial
             )
             self.checkboxes.append(checkbox_row)
         
@@ -570,16 +650,21 @@ class SancionesTab:
     
     def select_all(self):
         """Seleccionar todas las sanciones"""
-        for checkbox in self.checkboxes:
-            checkbox.is_selected.set(True)
+        if not self.es_historial:
+            for checkbox in self.checkboxes:
+                checkbox.is_selected.set(True)
     
     def clear_all(self):
         """Deseleccionar todas las sanciones"""
-        for checkbox in self.checkboxes:
-            checkbox.is_selected.set(False)
+        if not self.es_historial:
+            for checkbox in self.checkboxes:
+                checkbox.is_selected.set(False)
     
     def update_selected_count(self):
         """Actualizar contador de seleccionadas"""
+        if self.es_historial:
+            return
+            
         count = sum(1 for cb in self.checkboxes if cb.is_selected.get())
         self.selected_count_label.config(text=f"{count} seleccionadas")
         
@@ -591,6 +676,9 @@ class SancionesTab:
     
     def procesar_seleccionadas(self):
         """Procesar sanciones seleccionadas"""
+        if self.es_historial:
+            return
+            
         sanciones_seleccionadas = [
             cb.sancion for cb in self.checkboxes 
             if cb.is_selected.get()
@@ -601,11 +689,53 @@ class SancionesTab:
             return
         
         self.on_procesar(sanciones_seleccionadas, self.categoria)
+    
+    def descargar_excel(self):
+        """Descargar Excel de esta categoría"""
+        if not self.sanciones:
+            messagebox.showwarning("Sin datos", "No hay sanciones para descargar")
+            return
+        
+        try:
+            # Pedir ubicación para guardar
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"Historial_{self.categoria.replace(' ', '_')}_{timestamp}.xlsx"
+            
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                initialfile=filename,  # CORREGIDO: era initialname
+                title="Guardar Excel"
+            )
+            
+            if filepath:
+                # Intentar exportación completa, si falla usar simple
+                archivo_generado = procesador.exportar_a_excel(self.sanciones, filepath)
+                
+                if not archivo_generado:
+                    print("⚠️ Exportación completa falló, intentando versión simple...")
+                    archivo_generado = procesador.exportar_a_excel_simple(self.sanciones, filepath)
+                
+                if archivo_generado:
+                    messagebox.showinfo(
+                        "Descarga exitosa", 
+                        f"✅ Excel generado exitosamente:\n{filepath}"
+                    )
+                    
+                    # Preguntar si quiere abrir el archivo
+                    if messagebox.askyesno("Abrir archivo", "¿Desea abrir el archivo Excel?"):
+                        os.startfile(filepath)
+                else:
+                    messagebox.showerror("Error", "No se pudo generar el archivo Excel")
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al descargar Excel: {e}")
 
 class MainWindow:
     def __init__(self, usuario):
         self.usuario = usuario
         self.sanciones_categorizadas = {}
+        self.historial_categorizado = {}
         self.root = tk.Tk()
         
         self.setup_main_window()
@@ -637,6 +767,12 @@ class MainWindow:
         menubar.add_cascade(label="🔧 Herramientas", menu=tools_menu)
         tools_menu.add_command(label="🧪 Crear Sanción Prueba", command=self.crear_sancion_prueba)
         tools_menu.add_command(label="🔍 Test Conexión", command=self.test_conexion)
+        
+        # Menu Reportes
+        reportes_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="📊 Reportes", menu=reportes_menu)
+        reportes_menu.add_command(label="📥 Descargar Todo (Excel)", command=self.descargar_todo_excel)
+        reportes_menu.add_command(label="📈 Reporte Completo", command=self.generar_reporte_completo)
         
         # Header principal
         header_frame = tk.Frame(self.root, bg=COLOR_PRINCIPAL, height=80)
@@ -716,7 +852,7 @@ class MainWindow:
         self.footer_right.pack(side=tk.RIGHT, pady=10)
     
     def cargar_datos(self):
-        self.status_label.config(text="🔄 Cargando sanciones...")
+        self.status_label.config(text="🔄 Cargando datos...")
         self.footer_right.config(text="🔄 Actualizando datos...")
         self.root.update()
         
@@ -733,9 +869,13 @@ class MainWindow:
                 self.root.after(0, lambda: messagebox.showerror("Error", MSG_CONEXION_ERROR))
                 return
             
-            # Obtener sanciones
+            # Obtener sanciones pendientes
             sanciones = procesador.obtener_sanciones_pendientes()
             self.sanciones_categorizadas = procesador.categorizar_sanciones(sanciones)
+            
+            # Obtener historial de procesadas
+            procesadas = procesador.obtener_procesadas_completas()
+            self.historial_categorizado = procesador.categorizar_procesadas(procesadas)
             
             # Actualizar UI en hilo principal
             self.root.after(0, self._actualizar_pestañas)
@@ -749,14 +889,15 @@ class MainWindow:
         for tab in self.notebook.tabs():
             self.notebook.forget(tab)
         
-        # Crear pestañas para cada categoría
+        # Crear pestañas para sanciones pendientes
         for categoria, sanciones in self.sanciones_categorizadas.items():
             tab_obj = SancionesTab(
                 self.notebook, 
                 categoria, 
                 sanciones, 
                 self.procesar_sanciones,
-                self.cargar_datos
+                self.cargar_datos,
+                es_historial=False
             )
             tab_frame = tab_obj.create_tab(self.notebook)
             
@@ -769,8 +910,32 @@ class MainWindow:
             
             self.notebook.add(tab_frame, text=f"{emoji} {categoria} ({len(sanciones)})")
         
-        total_sanciones = sum(len(s) for s in self.sanciones_categorizadas.values())
-        self.status_label.config(text=f"✅ {total_sanciones} sanciones pendientes")
+        # Crear pestañas para historial
+        for categoria, sanciones in self.historial_categorizado.items():
+            if sanciones:  # Solo crear pestaña si hay datos
+                tab_obj = SancionesTab(
+                    self.notebook, 
+                    categoria, 
+                    sanciones, 
+                    None,  # No procesar en historial
+                    self.cargar_datos,
+                    es_historial=True
+                )
+                tab_frame = tab_obj.create_tab(self.notebook)
+                
+                # Emoji para historial
+                emoji = {
+                    "Faltas y Permisos": "📚",
+                    "Horas y Franco": "📖", 
+                    "Resto": "📓"
+                }.get(categoria, "📄")
+                
+                self.notebook.add(tab_frame, text=f"{emoji} H-{categoria} ({len(sanciones)})")
+        
+        total_pendientes = sum(len(s) for s in self.sanciones_categorizadas.values())
+        total_procesadas = sum(len(s) for s in self.historial_categorizado.values())
+        
+        self.status_label.config(text=f"✅ {total_pendientes} pendientes | {total_procesadas} procesadas")
         self.footer_right.config(text=f"🕐 Actualizado: {datetime.now().strftime('%H:%M:%S')}")
     
     def procesar_sanciones(self, sanciones, categoria):
@@ -822,12 +987,12 @@ class MainWindow:
         # Procesar en hilo separado
         thread = threading.Thread(
             target=self._procesar_thread,
-            args=(sanciones, progress_window, status_lbl, progress)
+            args=(sanciones, progress_window, status_lbl, progress, categoria)
         )
         thread.daemon = True
         thread.start()
     
-    def _procesar_thread(self, sanciones, progress_window, status_lbl, progress):
+    def _procesar_thread(self, sanciones, progress_window, status_lbl, progress, categoria):
         try:
             exitosas, fallidas = procesador.procesar_multiples_sanciones(sanciones, self.usuario)
             
@@ -840,10 +1005,15 @@ class MainWindow:
                 mensaje += f"🎯 Sanciones procesadas: {exitosas}\n"
                 if fallidas > 0:
                     mensaje += f"❌ Sanciones fallidas: {fallidas}\n"
-                mensaje += f"\n✨ Las sanciones han sido marcadas en Supabase"
+                mensaje += f"\n¿Desea descargar un archivo Excel con las sanciones procesadas?"
                 
-                self.root.after(0, lambda: messagebox.showinfo("Éxito", mensaje))
-                self.root.after(0, self.cargar_datos)  # Recargar datos
+                def mostrar_resultado():
+                    respuesta = messagebox.askyesno("Procesamiento Exitoso", mensaje)
+                    if respuesta:
+                        self._descargar_procesadas_recientes(sanciones)
+                    self.cargar_datos()  # Recargar datos
+                
+                self.root.after(0, mostrar_resultado)
             else:
                 mensaje = f"❌ No se pudieron procesar las sanciones\n\n"
                 mensaje += f"Fallidas: {fallidas}\n"
@@ -854,6 +1024,234 @@ class MainWindow:
         except Exception as e:
             self.root.after(0, progress_window.destroy)
             self.root.after(0, lambda: messagebox.showerror("Error", f"Error procesando: {e}"))
+    
+    def _descargar_procesadas_recientes(self, sanciones_procesadas):
+        """Descargar Excel de las sanciones recién procesadas"""
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"Sanciones_Procesadas_{timestamp}.xlsx"
+            
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                initialfile=filename,  # CORREGIDO: era initialname
+                title="Guardar Sanciones Procesadas"
+            )
+            
+            if filepath:
+                # Agregar info de procesamiento a las sanciones
+                for sancion in sanciones_procesadas:
+                    sancion['procesado_por'] = self.usuario
+                    sancion['fecha_procesamiento'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Intentar exportación completa, si falla usar simple
+                archivo_generado = procesador.exportar_a_excel(sanciones_procesadas, filepath)
+                
+                if not archivo_generado:
+                    print("⚠️ Exportación completa falló, intentando versión simple...")
+                    archivo_generado = procesador.exportar_a_excel_simple(sanciones_procesadas, filepath)
+                
+                if archivo_generado:
+                    messagebox.showinfo(
+                        "Descarga exitosa", 
+                        f"✅ Excel generado exitosamente:\n{filepath}"
+                    )
+                    
+                    # Preguntar si quiere abrir el archivo
+                    if messagebox.askyesno("Abrir archivo", "¿Desea abrir el archivo Excel?"):
+                        os.startfile(filepath)
+                else:
+                    messagebox.showerror("Error", "No se pudo generar el archivo Excel")
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al descargar Excel: {e}")
+    
+    def descargar_todo_excel(self):
+        """Descargar Excel con todo el historial"""
+        try:
+            procesadas = procesador.obtener_procesadas_completas()
+            
+            if not procesadas:
+                messagebox.showwarning("Sin datos", "No hay sanciones procesadas para descargar")
+                return
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"Historial_Completo_RRHH_{timestamp}.xlsx"
+            
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                initialfile=filename,  # CORREGIDO: era initialname
+                title="Guardar Historial Completo"
+            )
+            
+            if filepath:
+                # Intentar exportación completa, si falla usar simple
+                archivo_generado = procesador.exportar_a_excel(procesadas, filepath)
+                
+                if not archivo_generado:
+                    print("⚠️ Exportación completa falló, intentando versión simple...")
+                    archivo_generado = procesador.exportar_a_excel_simple(procesadas, filepath)
+                
+                if archivo_generado:
+                    messagebox.showinfo(
+                        "Descarga exitosa", 
+                        f"✅ Historial completo exportado:\n{filepath}\n\n"
+                        f"📊 Total de registros: {len(procesadas)}"
+                    )
+                    
+                    # Preguntar si quiere abrir el archivo
+                    if messagebox.askyesno("Abrir archivo", "¿Desea abrir el archivo Excel?"):
+                        os.startfile(filepath)
+                else:
+                    messagebox.showerror("Error", "No se pudo generar el archivo Excel")
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al descargar historial: {e}")
+    
+    def generar_reporte_completo(self):
+        """Generar reporte completo con estadísticas"""
+        stats = procesador.obtener_estadisticas()
+        
+        if not stats:
+            messagebox.showwarning("Sin datos", "No se pudieron obtener estadísticas")
+            return
+        
+        # Crear ventana de reporte
+        report_window = tk.Toplevel(self.root)
+        report_window.title("📈 Reporte Completo del Sistema")
+        report_window.geometry("800x600")
+        report_window.configure(bg='white')
+        report_window.transient(self.root)
+        
+        # Contenido del reporte
+        text_widget = scrolledtext.ScrolledText(
+            report_window, 
+            wrap=tk.WORD, 
+            font=('Courier', 10),
+            bg='white',
+            padx=20,
+            pady=20
+        )
+        text_widget.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
+        
+        # Generar contenido del reporte
+        total_pendientes = sum(len(s) for s in self.sanciones_categorizadas.values())
+        total_procesadas = sum(len(s) for s in self.historial_categorizado.values())
+        
+        contenido = f"""
+📈 REPORTE COMPLETO DEL SISTEMA RRHH
+{"="*60}
+
+📊 RESUMEN EJECUTIVO:
+{"─"*30}
+• Total sanciones pendientes: {total_pendientes}
+• Total sanciones procesadas: {total_procesadas}
+• Procesadas hoy: {stats.get('procesadas_hoy', 0)}
+• Eficiencia de procesamiento: {((total_procesadas/(total_procesadas+total_pendientes))*100):.1f}%
+
+📋 SANCIONES PENDIENTES POR CATEGORÍA:
+{"─"*40}
+"""
+        
+        for categoria, sanciones in self.sanciones_categorizadas.items():
+            contenido += f"• {categoria}: {len(sanciones)} pendientes\n"
+        
+        contenido += f"\n📚 HISTORIAL PROCESADO POR CATEGORÍA:\n{'─'*40}\n"
+        for categoria, sanciones in self.historial_categorizado.items():
+            contenido += f"• {categoria}: {len(sanciones)} procesadas\n"
+        
+        contenido += f"\n👤 ACTIVIDAD POR USUARIO:\n{'─'*30}\n"
+        for usuario, cantidad in stats.get('por_usuario', {}).items():
+            contenido += f"• {usuario}: {cantidad} sanciones procesadas\n"
+        
+        contenido += f"\n🏷️ TIPOS DE SANCIÓN MÁS FRECUENTES:\n{'─'*40}\n"
+        for tipo, cantidad in sorted(stats.get('por_tipo', {}).items(), key=lambda x: x[1], reverse=True):
+            contenido += f"• {tipo}: {cantidad}\n"
+        
+        contenido += f"""
+
+📅 INFORMACIÓN DEL SISTEMA:
+{"─"*30}
+• Usuario actual: {self.usuario}
+• Fecha de reporte: {datetime.now().strftime('%Y-%m-%d')}
+• Hora de generación: {datetime.now().strftime('%H:%M:%S')}
+• Versión del sistema: {TITULO_APP} {VERSION}
+• Empresa: {EMPRESA}
+
+🔗 ESTADO DE CONEXIONES:
+{"─"*30}
+• Base remota (Supabase): ✅ Conectado
+• Base local (SQLite): ✅ Funcionando
+• Sincronización: ✅ Activa
+
+💡 RECOMENDACIONES:
+{"─"*30}
+• Procesar regularmente las sanciones pendientes
+• Revisar estadísticas semanalmente
+• Mantener respaldos del historial procesado
+• Verificar la conectividad con Supabase periódicamente
+        """
+        
+        text_widget.insert(tk.END, contenido)
+        text_widget.config(state=tk.DISABLED)
+        
+        # Botones del reporte
+        btn_frame = tk.Frame(report_window, bg='white')
+        btn_frame.pack(pady=15)
+        
+        export_btn = tk.Button(
+            btn_frame,
+            text="📥 Exportar Reporte",
+            command=lambda: self._exportar_reporte(contenido),
+            bg=COLOR_PRINCIPAL,
+            fg='white',
+            font=('Arial', 10, 'bold'),
+            padx=20,
+            pady=8
+        )
+        export_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        close_btn = tk.Button(
+            btn_frame,
+            text="Cerrar",
+            command=report_window.destroy,
+            bg='#6c757d',
+            fg='white',
+            font=('Arial', 10),
+            padx=20,
+            pady=8
+        )
+        close_btn.pack(side=tk.LEFT)
+    
+    def _exportar_reporte(self, contenido):
+        """Exportar reporte a archivo de texto"""
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"Reporte_RRHH_{timestamp}.txt"
+            
+            filepath = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt")],
+                initialfile=filename,  # CORREGIDO: era initialname
+                title="Guardar Reporte"
+            )
+            
+            if filepath:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(contenido)
+                
+                messagebox.showinfo(
+                    "Reporte exportado", 
+                    f"✅ Reporte guardado exitosamente:\n{filepath}"
+                )
+                
+                # Preguntar si quiere abrir el archivo
+                if messagebox.askyesno("Abrir reporte", "¿Desea abrir el archivo de reporte?"):
+                    os.startfile(filepath)
+                    
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al exportar reporte: {e}")
     
     def mostrar_estadisticas(self):
         stats = procesador.obtener_estadisticas()
@@ -932,7 +1330,7 @@ class MainWindow:
             messagebox.showerror("Conexión", "❌ Error de conexión con Supabase")
 
 def main():
-    print("🚀 Iniciando Sistema RRHH con Checkboxes Reales...")
+    print("🚀 Iniciando Sistema RRHH Completo con Excel e Historial...")
     
     def on_login_success(usuario):
         app = MainWindow(usuario)

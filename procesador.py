@@ -346,24 +346,33 @@ class ProcesadorRRHH:
     def exportar_a_excel(self, sanciones: List[Dict], nombre_archivo: str = None) -> str:
         """Exportar sanciones a Excel"""
         try:
-            import openpyxl
-            from openpyxl.styles import Font, Alignment, PatternFill
-            from openpyxl.utils import get_column_letter
+            print("📥 Iniciando exportación a Excel...")
             
-        except ImportError:
-            print("❌ openpyxl no está instalado. Instalando...")
-            import subprocess
-            import sys
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "openpyxl"])
-            import openpyxl
-            from openpyxl.styles import Font, Alignment, PatternFill
-            from openpyxl.utils import get_column_letter
+            # Verificar que openpyxl esté disponible
+            try:
+                import openpyxl
+                from openpyxl.styles import Font, Alignment, PatternFill
+                from openpyxl.utils import get_column_letter
+            except ImportError:
+                print("❌ openpyxl no está instalado. Instalando automáticamente...")
+                import subprocess
+                import sys
+                try:
+                    subprocess.check_call([sys.executable, "-m", "pip", "install", "openpyxl"])
+                    print("✅ openpyxl instalado exitosamente")
+                    import openpyxl
+                    from openpyxl.styles import Font, Alignment, PatternFill
+                    from openpyxl.utils import get_column_letter
+                except Exception as install_error:
+                    print(f"❌ Error instalando openpyxl: {install_error}")
+                    return None
         
-        try:
             # Nombre del archivo
             if not nombre_archivo:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 nombre_archivo = f"Sanciones_Procesadas_{timestamp}.xlsx"
+            
+            print(f"📄 Creando archivo: {nombre_archivo}")
             
             # Crear workbook
             wb = openpyxl.Workbook()
@@ -376,12 +385,16 @@ class ProcesadorRRHH:
                 wb.remove(wb['Sheet'])
             
             # Crear hoja para cada categoría
+            hojas_creadas = 0
             for categoria, sanciones_categoria in categorizadas.items():
                 if not sanciones_categoria:
                     continue
                     
+                print(f"📝 Creando hoja: {categoria} ({len(sanciones_categoria)} registros)")
+                
                 # Crear hoja
-                ws = wb.create_sheet(title=categoria[:30])  # Limitar nombre de hoja
+                nombre_hoja = categoria.replace('/', '-')[:30]  # Evitar caracteres inválidos
+                ws = wb.create_sheet(title=nombre_hoja)
                 
                 # Estilo del header
                 header_font = Font(bold=True, color="FFFFFF")
@@ -406,7 +419,7 @@ class ProcesadorRRHH:
                 # Escribir datos
                 for row, sancion in enumerate(sanciones_categoria, 2):
                     data_row = [
-                        sancion.get('id', '')[:8] + '...',
+                        str(sancion.get('id', ''))[:12] + '...' if len(str(sancion.get('id', ''))) > 12 else str(sancion.get('id', '')),
                         sancion.get('empleado_cod', ''),
                         sancion.get('empleado_nombre', ''),
                         sancion.get('puesto', ''),
@@ -434,6 +447,14 @@ class ProcesadorRRHH:
                 ws.column_dimensions['C'].width = 25  # Nombre empleado
                 ws.column_dimensions['I'].width = 30  # Observaciones
                 ws.column_dimensions['L'].width = 30  # Comentarios RRHH
+                
+                hojas_creadas += 1
+            
+            # Si no se crearon hojas, crear una vacía
+            if hojas_creadas == 0:
+                ws = wb.create_sheet(title="Sin Datos")
+                ws['A1'] = "No hay datos para exportar"
+                ws['A1'].font = Font(bold=True)
             
             # Crear hoja resumen
             ws_resumen = wb.create_sheet(title="Resumen", index=0)
@@ -451,13 +472,16 @@ class ProcesadorRRHH:
                 row += 1
             
             # Guardar archivo
+            print(f"💾 Guardando archivo: {nombre_archivo}")
             wb.save(nombre_archivo)
-            print(f"✅ Excel exportado: {nombre_archivo}")
+            print(f"✅ Excel exportado exitosamente: {nombre_archivo}")
             
             return nombre_archivo
             
         except Exception as e:
             print(f"❌ Error exportando a Excel: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def obtener_estadisticas(self) -> Dict:
